@@ -1,20 +1,23 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TbcaTest.Application.Abstractions.Persistence;
 using TbcaTest.Application.DTOs.Tasks;
 using TbcaTest.Domain.Entities;
+using TbcaTest.Domain.Exceptions;
 
 namespace TbcaTest.Application.Services
 {
     public class TaskService : ITaskService
     {
         private readonly ITaskRepository _taskRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public TaskService(ITaskRepository taskRepository)
+        public TaskService(ITaskRepository taskRepository, IUnitOfWork unitOfWork)
         {
             _taskRepository = taskRepository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<IEnumerable<TaskResponse>> GetPagedTasksAsync(int pageNumber, int pageSize)
@@ -50,9 +53,16 @@ namespace TbcaTest.Application.Services
 
         public async Task<TaskResponse> CreateTaskAsync(CreateTaskRequest request)
         {
+            var exists = await _taskRepository.ExistsByTitleAsync(request.Title);
+            if (exists)
+            {
+                throw new DomainValidationException("A task with this title already exists.");
+            }
+
             var task = new TaskItem(request.Title, request.Description, request.DueDate, request.Priority);
 
             await _taskRepository.AddAsync(task);
+            await _unitOfWork.CommitAsync();
 
             return new TaskResponse
             {
@@ -72,6 +82,18 @@ namespace TbcaTest.Application.Services
             {
                 task.Update(request.Title, request.Description, request.DueDate, request.Status, request.Priority);
                 await _taskRepository.UpdateAsync(task);
+                await _unitOfWork.CommitAsync();
+            }
+        }
+
+        public async Task UpdateTaskStatusAsync(Guid id, UpdateTaskStatusRequest request)
+        {
+            var task = await _taskRepository.GetByIdAsync(id);
+            if (task != null)
+            {
+                task.UpdateStatus(request.Status);
+                await _taskRepository.UpdateAsync(task);
+                await _unitOfWork.CommitAsync();
             }
         }
 
@@ -81,6 +103,7 @@ namespace TbcaTest.Application.Services
             if (task != null)
             {
                 await _taskRepository.DeleteAsync(task);
+                await _unitOfWork.CommitAsync();
             }
         }
     }

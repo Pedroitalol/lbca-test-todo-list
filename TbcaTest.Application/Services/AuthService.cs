@@ -1,4 +1,4 @@
-﻿using FluentResults;
+using FluentResults;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TbcaTest.Application.Abstractions.Integrations;
@@ -154,6 +154,79 @@ public class AuthService(
         }
 
         return value.Trim('"', '\'');
+    }
+
+    public async Task<Result<LoginResponse>> RegisterAsync(
+        RegisterRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = NormalizeEmail(request.Email);
+        if (normalizedEmail is null)
+        {
+            return Result.Fail<LoginResponse>("Email is required.");
+        }
+
+        var existingClient = await clientRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+        if (existingClient is not null)
+        {
+            return Result.Fail<LoginResponse>("An account with this email already exists.");
+        }
+
+        var client = new Client
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name,
+            Email = normalizedEmail,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            AuthProvider = "Local",
+            Plan = Plan.Standard,
+            Role = Roles.Client,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await clientRepository.Create(client, cancellationToken);
+        await clientRepository.SaveChanges(cancellationToken);
+        
+        logger.LogInformation("Local registration succeeded. email={Email} clientId={ClientId}",
+            PersonalDataMasker.MaskEmail(client.Email),
+            client.Id);
+
+        return Result.Ok(BuildLoginResponse(client));
+    }
+
+    public async Task<Result<LoginResponse>> LoginAsync(
+        LoginRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = NormalizeEmail(request.Email);
+        if (normalizedEmail is null)
+        {
+            return Result.Fail<LoginResponse>("Email is required.");
+        }
+
+        var client = await clientRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+        if (client is null || string.IsNullOrWhiteSpace(client.PasswordHash))
+        {
+            logger.LogWarning("Local login failed: Invalid email or password. email={Email}",
+                PersonalDataMasker.MaskEmail(normalizedEmail));
+            return Result.Fail<LoginResponse>("Invalid email or password.");
+        }
+
+        bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, client.PasswordHash);
+        if (!isPasswordValid)
+        {
+            logger.LogWarning("Local login failed: Invalid email or password. email={Email}",
+                PersonalDataMasker.MaskEmail(normalizedEmail));
+            return Result.Fail<LoginResponse>("Invalid email or password.");
+        }
+
+        logger.LogInformation("Local login succeeded. email={Email} clientId={ClientId}",
+            PersonalDataMasker.MaskEmail(client.Email),
+            client.Id);
+
+        return Result.Ok(BuildLoginResponse(client));
     }
 
     private static string? NormalizeOptional(string? value)

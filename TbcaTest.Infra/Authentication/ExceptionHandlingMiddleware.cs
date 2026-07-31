@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -11,6 +11,16 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         try
         {
             await next(context);
+        }
+        catch (TbcaTest.Domain.Exceptions.DomainValidationException ex)
+        {
+            logger.LogWarning(ex, "Domain validation failed.");
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                errors = new[] { ex.Message }
+            }));
         }
         catch (Exception ex)
         {

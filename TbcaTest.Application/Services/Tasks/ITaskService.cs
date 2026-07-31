@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TbcaTest.Application.DTOs.Tasks;
@@ -11,6 +11,7 @@ namespace TbcaTest.Application.Services
         Task<IEnumerable<TaskResponse>> GetPagedTasksAsync(int pageNumber, int pageSize);
         Task<TaskResponse> CreateTaskAsync(CreateTaskRequest request);
         Task UpdateTaskAsync(Guid id, UpdateTaskRequest request);
+        Task UpdateTaskStatusAsync(Guid id, UpdateTaskStatusRequest request);
         Task DeleteTaskAsync(Guid id);
     }
 }

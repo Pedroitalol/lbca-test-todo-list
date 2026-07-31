@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -427,5 +427,7 @@ sealed class CorsRules(CorsRule[] items)
 {
     public CorsRule[] Items { get; } = items;
 }
+
+public partial class Program { }
 
 

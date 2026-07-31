@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using TbcaTest.Application.Services;
 
 namespace TbcaTest.Application.IoC;
@@ -10,6 +10,7 @@ public static class ApplicationIoC
         services.AddScoped<AuthService>();
         services.AddScoped<TokenService>();
         services.AddScoped<StripeWebhookService>();
+        services.AddScoped<ITaskService, TaskService>();
         
         return services;
     }

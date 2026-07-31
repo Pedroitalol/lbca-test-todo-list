@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using TbcaTest.Application.DTOs.Tasks;
@@ -5,6 +6,7 @@ using TbcaTest.Application.Services;
 
 namespace TbcaTest.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TasksController : ControllerBase
@@ -24,10 +26,47 @@ public class TasksController : ControllerBase
         return Ok(tasks);
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetTask(Guid id)
+    {
+        var task = await _taskService.GetByIdAsync(id);
+        if (task == null)
+        {
+            return NotFound(new { errors = new[] { "Task not found" } });
+        }
+        return Ok(task);
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateTask([FromBody] CreateTaskRequest request)
     {
         var task = await _taskService.CreateTaskAsync(request);
-        return CreatedAtAction(nameof(GetTasks), new { id = task.Id }, task);
+        return CreatedAtAction(nameof(GetTask), new { id = task.Id }, task);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskRequest request)
+    {
+        var task = await _taskService.GetByIdAsync(id);
+        if (task == null)
+        {
+            return NotFound(new { errors = new[] { "Task not found" } });
+        }
+
+        await _taskService.UpdateTaskAsync(id, request);
+        return NoContent();
+    }
+
+    [HttpPatch("{id}/status")]
+    public async Task<IActionResult> UpdateTaskStatus(Guid id, [FromBody] UpdateTaskStatusRequest request)
+    {
+        var task = await _taskService.GetByIdAsync(id);
+        if (task == null)
+        {
+            return NotFound(new { errors = new[] { "Task not found" } });
+        }
+
+        await _taskService.UpdateTaskStatusAsync(id, request);
+        return NoContent();
     }
 }

@@ -31,6 +31,8 @@ public static class InfraIoC
 
         services.AddScoped<DbContext, TbcaTestContext>();
         services.AddScoped<IClientRepository, ClientRepository>();
+        services.AddScoped<ITaskRepository, TaskRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddSingleton<IFirebaseTokenVerifier, FirebaseTokenVerifier>();
         
         return services;

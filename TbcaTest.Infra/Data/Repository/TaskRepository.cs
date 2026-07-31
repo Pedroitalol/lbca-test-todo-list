@@ -33,22 +33,26 @@ namespace TbcaTest.Infra.Data.Repository
                 .ToListAsync();
         }
 
+        public async Task<bool> ExistsByTitleAsync(string title)
+        {
+            return await _context.TaskItems.AnyAsync(t => t.Title == title);
+        }
+
         public async Task AddAsync(TaskItem task)
         {
             await _context.TaskItems.AddAsync(task);
-            await _context.SaveChangesAsync();
         }
 
-        public async Task UpdateAsync(TaskItem task)
+        public Task UpdateAsync(TaskItem task)
         {
             _context.TaskItems.Update(task);
-            await _context.SaveChangesAsync();
+            return Task.CompletedTask;
         }
 
-        public async Task DeleteAsync(TaskItem task)
+        public Task DeleteAsync(TaskItem task)
         {
             _context.TaskItems.Remove(task);
-            await _context.SaveChangesAsync();
+            return Task.CompletedTask;
         }
     }
 }
