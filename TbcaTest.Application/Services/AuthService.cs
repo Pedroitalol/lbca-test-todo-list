@@ -13,9 +13,9 @@ namespace TbcaTest.Application.Services;
 public class AuthService(
     IClientRepository clientRepository,
     IFirebaseTokenVerifier firebaseTokenVerifier,
-    TokenService tokenService,
+    ITokenService tokenService,
     IOptions<FirebaseOptions> firebaseOptions,
-    ILogger<AuthService> logger)
+    ILogger<AuthService> logger) : IAuthService
 {
     private const string GoogleProvider = "Google";
     private readonly FirebaseOptions _firebaseOptions = firebaseOptions.Value;

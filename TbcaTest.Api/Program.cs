@@ -9,7 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TbcaTest.Application.IoC;
 using TbcaTest.CrossCutting.Configuration;
-using TbcaTest.Infra.Authentication;
+using TbcaTest.Api.Middlewares;
 using TbcaTest.Infra.Contexts;
 using TbcaTest.Infra.IoC;
 

@@ -1,4 +1,4 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -9,7 +9,7 @@ using TbcaTest.Domain.Entities;
 
 namespace TbcaTest.Application.Services;
 
-public class TokenService(IOptions<JwtOptions> jwtOptions)
+public class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenService
 {
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
 

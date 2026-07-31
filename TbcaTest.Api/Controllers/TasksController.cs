@@ -69,4 +69,24 @@ public class TasksController : ControllerBase
         await _taskService.UpdateTaskStatusAsync(id, request);
         return NoContent();
     }
+
+    [HttpPost("import")]
+    public async Task<IActionResult> ImportTasks(Microsoft.AspNetCore.Http.IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { errors = new[] { "No file uploaded." } });
+        }
+
+        var extension = System.IO.Path.GetExtension(file.FileName);
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { errors = new[] { "Invalid file format. Please upload a .xlsx file." } });
+        }
+
+        using var stream = file.OpenReadStream();
+        var report = await _taskService.ImportTasksFromExcelAsync(stream);
+
+        return Ok(report);
+    }
 }

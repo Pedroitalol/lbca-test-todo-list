@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -14,7 +14,7 @@ namespace TbcaTest.Api.Controllers;
 [Route("webhooks")]
 public class WebhooksController(
     ILogger<WebhooksController> logger,
-    StripeWebhookService stripeWebhookService,
+    IStripeWebhookService stripeWebhookService,
     IOptions<StripeOptions> stripeOptions) : ControllerBase
 {
     private readonly StripeOptions _stripeOptions = stripeOptions.Value;

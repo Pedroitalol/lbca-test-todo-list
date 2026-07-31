@@ -13,5 +13,6 @@ namespace TbcaTest.Application.Services
         Task UpdateTaskAsync(Guid id, UpdateTaskRequest request);
         Task UpdateTaskStatusAsync(Guid id, UpdateTaskStatusRequest request);
         Task DeleteTaskAsync(Guid id);
+        Task<ImportTaskResponse> ImportTasksFromExcelAsync(System.IO.Stream excelStream);
     }
 }

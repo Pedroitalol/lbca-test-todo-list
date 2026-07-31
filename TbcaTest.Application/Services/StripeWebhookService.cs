@@ -1,11 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using TbcaTest.Application.Abstractions.Persistence;
 
 namespace TbcaTest.Application.Services;
 
 public class StripeWebhookService(
     IClientRepository clientRepository,
-    ILogger<StripeWebhookService> logger)
+    ILogger<StripeWebhookService> logger) : IStripeWebhookService
 {
     public async Task HandleAsync(
         string eventType,

@@ -5,5 +5,6 @@ namespace TbcaTest.Application.Abstractions.Persistence
     public interface IUnitOfWork
     {
         Task<bool> CommitAsync();
+        Task<System.Data.IDbTransaction?> BeginTransactionAsync();
     }
 }

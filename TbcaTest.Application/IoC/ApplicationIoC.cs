@@ -7,9 +7,9 @@ public static class ApplicationIoC
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddScoped<AuthService>();
-        services.AddScoped<TokenService>();
-        services.AddScoped<StripeWebhookService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IStripeWebhookService, StripeWebhookService>();
         services.AddScoped<ITaskService, TaskService>();
         
         return services;

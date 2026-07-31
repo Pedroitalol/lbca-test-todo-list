@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using TbcaTest.CrossCutting.Configuration;
 
-namespace TbcaTest.Infra.Authentication;
+namespace TbcaTest.Api.Middlewares;
 
 public class ApiKeyMiddleware(RequestDelegate next, IOptions<AppSecurityOptions> securityOptions)
 {
@@ -27,8 +29,12 @@ public class ApiKeyMiddleware(RequestDelegate next, IOptions<AppSecurityOptions>
 
         if (!context.Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKey) ||
             !context.Request.Headers.TryGetValue(ApiSecretHeaderName, out var apiSecret) ||
-            !string.Equals(apiKey, _securityOptions.ApiKey, StringComparison.Ordinal) ||
-            !string.Equals(apiSecret, _securityOptions.ApiSecret, StringComparison.Ordinal))
+            !CryptographicOperations.FixedTimeEquals(
+                MemoryMarshal.AsBytes(apiKey.ToString().AsSpan()),
+                MemoryMarshal.AsBytes(_securityOptions.ApiKey.AsSpan())) ||
+            !CryptographicOperations.FixedTimeEquals(
+                MemoryMarshal.AsBytes(apiSecret.ToString().AsSpan()),
+                MemoryMarshal.AsBytes(_securityOptions.ApiSecret.AsSpan())))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.ContentType = "application/json";
