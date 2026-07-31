@@ -1,0 +1,69 @@
+﻿{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.AspNetCore.Mvc.Internal": "Warning",
+      "Microsoft.AspNetCore.Authentication": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information",
+      "Azure.Core": "Error",
+      "Azure.Messaging.ServiceBus": "Warning",
+      "Microsoft.EntityFrameworkCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
+    },
+    "Console": {
+      "LogLevel": {
+        "Default": "Information",
+        "Microsoft": "Warning",
+        "Microsoft.AspNetCore.Mvc.Internal": "Warning",
+        "Microsoft.AspNetCore.Authentication": "Warning",
+        "Microsoft.Hosting.Lifetime": "Information"
+      },
+      "FormatterName": "Trace",
+      "FormatterOptions": {
+        "SingleLine": true,
+        "IncludeScopes": true,
+        "TimestampFormat": "HH:mm:ss ",
+        "UseUtcTimestamp": true
+      }
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=TbcaTest_db;Username=TbcaTest_api;Password=change-me"
+  },
+  "Jwt": {
+    "Key": "change-me-to-a-long-random-secret-with-at-least-32-bytes",
+    "Issuer": "TbcaTest-api",
+    "Audience": "TbcaTest-api",
+    "ExpirationHours": 8
+  },
+  "AppSecurity": {
+    "ApiKey": "change-me-api-key",
+    "ApiSecret": "change-me-api-secret",
+    "MaxRequestBodySizeBytes": 1048576,
+    "RateLimiting": {
+      "DefaultRequestsPerSecond": 20,
+      "AuthRequestsPerSecond": 5,
+      "WebhookRequestsPerSecond": 10
+    }
+  },
+  "Firebase": {
+    "ProjectId": "",
+    "CredentialsPath": "",
+    "RequireVerifiedEmail": true,
+    "CheckRevokedIdTokens": false
+  },
+  "Stripe": {
+    "SecretKey": "",
+    "WebhookSecret": ""
+  },
+  "DatabaseStartup": {
+    "ApplyMigrationsOnStartup": false
+  },
+  "Cors": {
+    "AllowedOrigins": "http://localhost:3000,http://localhost:5173"
+  },
+  "AllowedHosts": "*"
+}
+
+

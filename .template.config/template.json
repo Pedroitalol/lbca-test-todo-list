@@ -1,0 +1,44 @@
+﻿{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "GentleWinter",
+  "classifications": [ "Web", "API" ],
+  "identity": "GentleWinter.SaasApiTbcaTest",
+  "name": "SaaS API TbcaTest",
+  "shortName": "dotnet-TbcaTest",
+  "sourceName": "TbcaTest",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "symbols": {},
+  "sources": [
+    {
+      "source": "./",
+      "target": "./",
+      "exclude": [
+        "**/[Bb]in/**",
+        "**/[Oo]bj/**",
+        ".template.config/**/*",
+        "**/*.filelist",
+        "**/*.user",
+        "**/*.lock.json",
+        ".idea/**"
+      ],
+      "modifiers": [
+        {
+          "rename": {
+            "appsettings.json.pp": "appsettings.json",
+            "appsettings.Development.json.pp": "appsettings.Development.json"
+          }
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [
+    {
+      "path": "TbcaTest.sln"
+    }
+  ]
+}
+
+
