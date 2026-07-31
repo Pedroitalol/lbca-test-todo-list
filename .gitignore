@@ -486,3 +486,5 @@ $RECYCLE.BIN/
 # Agents
 .agents/
 
+# Local configuration
+appsettings.Development.json

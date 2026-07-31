@@ -1,7 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 using TbcaTest.Application.Abstractions.Integrations;
 using TbcaTest.Application.Abstractions.Persistence;
 using TbcaTest.CrossCutting.Configuration;
@@ -24,13 +23,11 @@ public static class InfraIoC
         var connectionString = ResolveConnectionString(configuration);
         
         services.AddDbContext<TbcaTestContext>(options =>
-            options.UseNpgsql(connectionString, npgsql =>
+            options.UseSqlServer(connectionString, sql =>
             {
-                npgsql.MigrationsAssembly("TbcaTest.Infra");
-                npgsql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                sql.MigrationsAssembly("TbcaTest.Infra");
+                sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
             }));
-        
-        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
         services.AddScoped<DbContext, TbcaTestContext>();
         services.AddScoped<IClientRepository, ClientRepository>();
@@ -47,11 +44,7 @@ public static class InfraIoC
             return directConnectionString;
         }
 
-        var databaseUrl = NormalizeConnectionString(Environment.GetEnvironmentVariable("DATABASE_URL"));
-        if (databaseUrl is not null)
-        {
-            return ConvertDatabaseUrlToConnectionString(databaseUrl);
-        }
+
 
         var configuredConnectionString = NormalizeConnectionString(configuration.GetConnectionString("DefaultConnection"));
         if (configuredConnectionString is not null)
@@ -62,31 +55,7 @@ public static class InfraIoC
         throw new ArgumentException("Connection string not configured. Set CONNECTION_STRING, DATABASE_URL, or ConnectionStrings:DefaultConnection.");
     }
 
-    private static string ConvertDatabaseUrlToConnectionString(string databaseUrl)
-    {
-        if (!Uri.TryCreate(databaseUrl, UriKind.Absolute, out var databaseUri))
-        {
-            throw new ArgumentException("DATABASE_URL is invalid.");
-        }
 
-        var userInfo = databaseUri.UserInfo.Split(':', 2);
-        if (userInfo.Length != 2)
-        {
-            throw new ArgumentException("DATABASE_URL does not contain valid credentials.");
-        }
-
-        var builder = new NpgsqlConnectionStringBuilder
-        {
-            Host = databaseUri.Host,
-            Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
-            Database = databaseUri.AbsolutePath.Trim('/'),
-            Username = Uri.UnescapeDataString(userInfo[0]),
-            Password = Uri.UnescapeDataString(userInfo[1]),
-            SslMode = SslMode.Require
-        };
-
-        return builder.ConnectionString;
-    }
 
     private static string? NormalizeConnectionString(string? connectionString)
         => string.IsNullOrWhiteSpace(connectionString) ? null : connectionString.Trim();
