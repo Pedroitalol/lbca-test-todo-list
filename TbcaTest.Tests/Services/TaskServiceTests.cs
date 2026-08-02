@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Moq;
 using TbcaTest.Application.Abstractions.Persistence;
 using TbcaTest.Application.DTOs.Tasks;
 using TbcaTest.Application.Services;
+using TbcaTest.CrossCutting.Configuration;
 using TbcaTest.Domain.Entities;
 using TbcaTest.Domain.Enums;
 using TbcaTest.Domain.Exceptions;
@@ -26,7 +28,17 @@ public class TaskServiceTests
     {
         _taskRepositoryMock = new Mock<ITaskRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _taskService = new TaskService(_taskRepositoryMock.Object, _unitOfWorkMock.Object);
+
+        var securityOptions = Options.Create(new AppSecurityOptions
+        {
+            ImportMaxReportedErrors = 500,
+            ImportMaxRequestBodySizeBytes = 104_857_600
+        });
+
+        _taskService = new TaskService(
+            _taskRepositoryMock.Object,
+            _unitOfWorkMock.Object,
+            securityOptions);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -427,8 +439,10 @@ public class TaskServiceTests
     [Fact]
     public async Task ImportTasksFromExcelAsync_WhenAllRowsValid_ShouldImportAllAndCommitOnce()
     {
-        // Arrange
-        _taskRepositoryMock.Setup(r => r.GetAllTitlesAsync()).ReturnsAsync(new List<string>());
+        // Arrange — GetExistingTitlesFromBatchAsync is called per batch; returns empty (no duplicates in DB)
+        _taskRepositoryMock
+            .Setup(r => r.GetExistingTitlesFromBatchAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new List<string>());
 
         using var stream = BuildExcelStream(ws =>
         {
@@ -454,14 +468,16 @@ public class TaskServiceTests
         response.Errors.Should().BeEmpty();
 
         _taskRepositoryMock.Verify(r => r.BulkInsertBatchAsync(It.IsAny<IEnumerable<TaskImportRow>>(), It.IsAny<System.Data.IDbTransaction>()), Times.Once);
-        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never); // Using BulkInsert so CommitAsync is bypassed on UnitOfWork (Transaction committed instead)
+        _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
     }
 
     [Fact]
     public async Task ImportTasksFromExcelAsync_WhenAllRowsInvalid_ShouldNotCommitAtAll()
     {
-        // Arrange
-        _taskRepositoryMock.Setup(r => r.GetAllTitlesAsync()).ReturnsAsync(new List<string>());
+        // Arrange — no DB check will be triggered because no rows pass validation
+        _taskRepositoryMock
+            .Setup(r => r.GetExistingTitlesFromBatchAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new List<string>());
 
         using var stream = BuildExcelStream(ws =>
         {
@@ -493,8 +509,10 @@ public class TaskServiceTests
     [Fact]
     public async Task ImportTasksFromExcelAsync_WhenTitleAlreadyExistsInDb_ShouldMarkRowAsFailed()
     {
-        // Arrange
-        _taskRepositoryMock.Setup(r => r.GetAllTitlesAsync()).ReturnsAsync(new List<string> { "Existing Task" });
+        // Arrange — the batch title check returns "Existing Task" as already in DB
+        _taskRepositoryMock
+            .Setup(r => r.GetExistingTitlesFromBatchAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new List<string> { "Existing Task" });
 
         using var stream = BuildExcelStream(ws =>
         {
@@ -516,8 +534,10 @@ public class TaskServiceTests
     [Fact]
     public async Task ImportTasksFromExcelAsync_WhenDuplicateTitleWithinSameFile_ShouldMarkSecondAsFailed()
     {
-        // Arrange – DB has no duplicates, but the same title appears twice in the sheet
-        _taskRepositoryMock.Setup(r => r.GetAllTitlesAsync()).ReturnsAsync(new List<string>());
+        // Arrange — DB has no duplicates, but the same title appears twice in the sheet
+        _taskRepositoryMock
+            .Setup(r => r.GetExistingTitlesFromBatchAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new List<string>());
 
         using var stream = BuildExcelStream(ws =>
         {
@@ -544,8 +564,10 @@ public class TaskServiceTests
     [Fact]
     public async Task ImportTasksFromExcelAsync_WhenInvalidPriority_ShouldRecordErrorWithRowNumber()
     {
-        // Arrange
-        _taskRepositoryMock.Setup(r => r.GetAllTitlesAsync()).ReturnsAsync(new List<string>());
+        // Arrange — invalid priority fails before reaching DB check
+        _taskRepositoryMock
+            .Setup(r => r.GetExistingTitlesFromBatchAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new List<string>());
 
         using var stream = BuildExcelStream(ws =>
         {
@@ -568,8 +590,10 @@ public class TaskServiceTests
     [Fact]
     public async Task ImportTasksFromExcelAsync_WhenMixOfValidAndInvalid_ShouldSaveOnlyValidOnes()
     {
-        // Arrange
-        _taskRepositoryMock.Setup(r => r.GetAllTitlesAsync()).ReturnsAsync(new List<string> { "Existing" });
+        // Arrange — "Existing" title returned as already in DB during per-batch check
+        _taskRepositoryMock
+            .Setup(r => r.GetExistingTitlesFromBatchAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new List<string> { "Existing" });
 
         using var stream = BuildExcelStream(ws =>
         {
@@ -579,7 +603,7 @@ public class TaskServiceTests
             ws.Cell(2, 3).Value = DateTime.UtcNow.AddDays(1).ToString("O");
             ws.Cell(2, 4).Value = "Medium";
 
-            // invalid: duplicate in DB
+            // will be rejected at DB batch check
             ws.Cell(3, 1).Value = "Existing";
             ws.Cell(3, 2).Value = "Desc";
             ws.Cell(3, 3).Value = DateTime.UtcNow.AddDays(1).ToString("O");
@@ -598,9 +622,10 @@ public class TaskServiceTests
         // Assert
         response.Should().NotBeNull();
         response.TotalRowsProcessed.Should().Be(3);
+        // "New Task" + "Existing" pass row-validation and enter batch;
+        // "Existing" is then rejected at the DB check leaving only 1 successful insert.
         response.SuccessfulImports.Should().Be(1);
-        response.FailedImports.Should().Be(2);
-        response.Errors.Should().HaveCount(2);
+        response.FailedImports.Should().Be(2); // "Existing" (DB dup) + "Another Task" (field errors)
 
         _taskRepositoryMock.Verify(r => r.BulkInsertBatchAsync(It.IsAny<IEnumerable<TaskImportRow>>(), It.IsAny<System.Data.IDbTransaction>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.CommitAsync(), Times.Never);
@@ -609,8 +634,10 @@ public class TaskServiceTests
     [Fact]
     public async Task ImportTasksFromExcelAsync_WhenHeaderOnlySheet_ShouldReturnEmptyReport()
     {
-        // Arrange
-        _taskRepositoryMock.Setup(r => r.GetAllTitlesAsync()).ReturnsAsync(new List<string>());
+        // Arrange — no rows to process so GetExistingTitlesFromBatchAsync is never called
+        _taskRepositoryMock
+            .Setup(r => r.GetExistingTitlesFromBatchAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new List<string>());
 
         // Sheet with only the header row
         using var stream = BuildExcelStream(_ => { });

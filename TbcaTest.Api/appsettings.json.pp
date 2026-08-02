@@ -1,4 +1,4 @@
-﻿{
+{
   "Logging": {
     "LogLevel": {
       "Default": "Information",
@@ -38,8 +38,6 @@
     "ExpirationHours": 8
   },
   "AppSecurity": {
-    "ApiKey": "change-me-api-key",
-    "ApiSecret": "change-me-api-secret",
     "MaxRequestBodySizeBytes": 1048576,
     "RateLimiting": {
       "DefaultRequestsPerSecond": 20,

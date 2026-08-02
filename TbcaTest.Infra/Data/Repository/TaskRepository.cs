@@ -44,10 +44,31 @@ namespace TbcaTest.Infra.Data.Repository
             return await _context.TaskItems.AnyAsync(t => t.Title == title);
         }
 
-        public async Task<IEnumerable<string>> GetAllTitlesAsync()
+        public async Task<IEnumerable<string>> GetExistingTitlesFromBatchAsync(IEnumerable<string> titles)
         {
+            var titleList = titles.ToList();
+            if (titleList.Count == 0)
+                return Enumerable.Empty<string>();
+
+            if (_context.Database.IsRelational() && _context.Database.GetDbConnection() is SqlConnection sqlConn)
+            {
+                if (sqlConn.State != System.Data.ConnectionState.Open)
+                    await sqlConn.OpenAsync();
+
+                var existingTitles = new List<string>();
+                foreach (var chunk in titleList.Chunk(2000))
+                {
+                    var titlesInChunk = await sqlConn.QueryAsync<string>(
+                        "SELECT Title FROM dbo.TaskItems WHERE Title IN @Titles",
+                        new { Titles = chunk });
+                    existingTitles.AddRange(titlesInChunk);
+                }
+                return existingTitles;
+            }
+
             return await _context.TaskItems
                 .AsNoTracking()
+                .Where(t => titleList.Contains(t.Title))
                 .Select(t => t.Title)
                 .ToListAsync();
         }
@@ -69,23 +90,13 @@ namespace TbcaTest.Infra.Data.Repository
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Sends a batch of validated rows to SQL Server using a Table-Valued Parameter (TVP).
-        /// Dapper executes the stored procedure <c>sp_InsertTaskBatch</c> which performs a
-        /// set-based INSERT from the TVP — one round trip per batch instead of N round trips.
-        ///
-        /// The <paramref name="transaction"/> is owned by the caller (TaskService).
-        /// This method does NOT commit or rollback; it only participates.
-        /// </summary>
         public async Task BulkInsertBatchAsync(IEnumerable<TaskImportRow> rows, IDbTransaction? transaction)
         {
-            // Fallback for InMemory/SQLite integration tests where Dapper+TVP isn't supported
             if (transaction?.Connection is not SqlConnection sqlConnection)
             {
                 var tasks = rows.Select(r =>
                 {
                     var task = new TaskItem(r.Title, r.Description, r.DueDate, r.Priority);
-                    // Use reflection to set Id and Status to match exactly the import row
                     typeof(TaskItem).GetProperty(nameof(TaskItem.Id))!.SetValue(task, r.Id);
                     if (Enum.TryParse<TaskStatus>(r.Status, out var status))
                         task.UpdateStatus(status);
@@ -96,7 +107,6 @@ namespace TbcaTest.Infra.Data.Repository
                 return;
             }
 
-            // Build a DataTable matching the SQL User-Defined Table Type [dbo].[TaskImportType]
             var table = BuildTaskDataTable(rows);
 
             var parameters = new DynamicParameters();
@@ -105,7 +115,6 @@ namespace TbcaTest.Infra.Data.Repository
                 table.AsTableValuedParameter("dbo.TaskImportType"),
                 DbType.Object);
 
-            // transaction.Connection is the raw SqlConnection opened by the service layer
             await sqlConnection.ExecuteAsync(
                 "dbo.sp_InsertTaskBatch",
                 parameters,
@@ -113,12 +122,6 @@ namespace TbcaTest.Infra.Data.Repository
                 commandType: CommandType.StoredProcedure);
         }
 
-        // ── Helpers ──────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Materialises a <see cref="DataTable"/> whose schema matches
-        /// <c>dbo.TaskImportType</c> defined in SQL Server.
-        /// </summary>
         private static DataTable BuildTaskDataTable(IEnumerable<TaskImportRow> rows)
         {
             var table = new DataTable("TaskImportType");

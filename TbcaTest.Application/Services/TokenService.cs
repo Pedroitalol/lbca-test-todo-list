@@ -9,15 +9,21 @@ using TbcaTest.Domain.Entities;
 
 namespace TbcaTest.Application.Services;
 
-public class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenService
+public class TokenService : ITokenService
 {
-    private readonly JwtOptions _jwtOptions = jwtOptions.Value;
+    private readonly JwtOptions _jwtOptions;
+    private readonly SigningCredentials _signingCredentials;
+    private readonly JwtSecurityTokenHandler _tokenHandler = new();
+
+    public TokenService(IOptions<JwtOptions> jwtOptions)
+    {
+        _jwtOptions = jwtOptions.Value;
+        var key = Encoding.UTF8.GetBytes(_jwtOptions.Key);
+        _signingCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature);
+    }
 
     public string GenerateToken(Client client)
     {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_jwtOptions.Key);
-
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[]
@@ -30,13 +36,12 @@ public class TokenService(IOptions<JwtOptions> jwtOptions) : ITokenService
             Issuer = _jwtOptions.Issuer,
             Audience = _jwtOptions.Audience,
             Expires = DateTime.UtcNow.AddHours(Math.Max(1, _jwtOptions.ExpirationHours)),
-            SigningCredentials =
-                new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials = _signingCredentials
         };
         
-        var token = tokenHandler.CreateToken(tokenDescriptor);
+        var token = _tokenHandler.CreateToken(tokenDescriptor);
         
-        return tokenHandler.WriteToken(token);
+        return _tokenHandler.WriteToken(token);
     }
 }
 

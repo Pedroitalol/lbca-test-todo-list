@@ -15,8 +15,6 @@ public class AuthApiIntegrationTests : IClassFixture<CustomWebApplicationFactory
     public AuthApiIntegrationTests(CustomWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
-        _client.DefaultRequestHeaders.Add("X-API-KEY", "test-key");
-        _client.DefaultRequestHeaders.Add("X-API-SECRET", "test-secret");
     }
 
     [Fact]

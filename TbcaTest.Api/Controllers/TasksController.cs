@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
 using TbcaTest.Application.DTOs.Tasks;
 using TbcaTest.Application.Services;
+using TbcaTest.CrossCutting.Configuration;
 
 namespace TbcaTest.Api.Controllers;
 
@@ -12,10 +14,12 @@ namespace TbcaTest.Api.Controllers;
 public class TasksController : ControllerBase
 {
     private readonly ITaskService _taskService;
+    private readonly AppSecurityOptions _securityOptions;
 
-    public TasksController(ITaskService taskService)
+    public TasksController(ITaskService taskService, IOptions<AppSecurityOptions> securityOptions)
     {
         _taskService = taskService;
+        _securityOptions = securityOptions.Value;
     }
 
     [HttpGet]
@@ -71,8 +75,16 @@ public class TasksController : ControllerBase
     }
 
     [HttpPost("import")]
+    [RequestSizeLimit(104_857_600)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 104_857_600)]
     public async Task<IActionResult> ImportTasks(Microsoft.AspNetCore.Http.IFormFile file)
     {
+        var bodySizeFeature = HttpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+        if (bodySizeFeature is { IsReadOnly: false })
+        {
+            bodySizeFeature.MaxRequestBodySize = _securityOptions.ImportMaxRequestBodySizeBytes;
+        }
+
         if (file == null || file.Length == 0)
         {
             return BadRequest(new { errors = new[] { "No file uploaded." } });

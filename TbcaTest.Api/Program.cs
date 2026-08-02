@@ -92,7 +92,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-var key = Encoding.ASCII.GetBytes(jwtOptions.Key);
+var key = Encoding.UTF8.GetBytes(jwtOptions.Key);
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -180,7 +180,11 @@ app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.Use(async (context, next) =>
 {
-    if (context.Request.ContentLength > appSecurityOptions.MaxRequestBodySizeBytes)
+    var maxLimit = context.Request.Path.StartsWithSegments("/api/tasks/import", StringComparison.OrdinalIgnoreCase)
+        ? appSecurityOptions.ImportMaxRequestBodySizeBytes
+        : appSecurityOptions.MaxRequestBodySizeBytes;
+
+    if (context.Request.ContentLength > maxLimit)
     {
         context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
         context.Response.ContentType = "application/json";
@@ -214,7 +218,6 @@ if (!app.Environment.IsProduction())
 }
 
 app.UseAuthentication();
-app.UseMiddleware<ApiKeyMiddleware>();
 app.UseAuthorization();
 
 if (databaseStartupOptions.ApplyMigrationsOnStartup || app.Environment.IsProduction())

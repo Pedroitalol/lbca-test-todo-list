@@ -18,6 +18,7 @@ public class AuthService(
     ILogger<AuthService> logger) : IAuthService
 {
     private const string GoogleProvider = "Google";
+    private const string DummyPasswordHash = "$2a$11$eE/.mUgMv/tq5e5W8yW2.15/4xQkE6/fG92nB55S3eDxFQpT27iO";
     private readonly FirebaseOptions _firebaseOptions = firebaseOptions.Value;
 
     public async Task<Result<LoginResponse>> GoogleLoginAsync(
@@ -80,6 +81,13 @@ public class AuthService(
         }
         else
         {
+            if (!client.IsActive)
+            {
+                logger.LogWarning("Google login rejected: Account is inactive. email={Email}",
+                    PersonalDataMasker.MaskEmail(normalizedEmail));
+                return Result.Fail<LoginResponse>("Account is inactive or disabled.");
+            }
+
             client.FirebaseUid ??= firebaseToken.Uid;
             client.AuthProvider = GoogleProvider;
             client.Email = normalizedEmail;
@@ -172,12 +180,14 @@ public class AuthService(
             return Result.Fail<LoginResponse>("An account with this email already exists.");
         }
 
+        var passwordHash = await Task.Run(() => BCrypt.Net.BCrypt.HashPassword(request.Password), cancellationToken);
+
         var client = new Client
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = normalizedEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            PasswordHash = passwordHash,
             AuthProvider = "Local",
             Plan = Plan.Standard,
             Role = Roles.Client,
@@ -209,12 +219,20 @@ public class AuthService(
         var client = await clientRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
         if (client is null || string.IsNullOrWhiteSpace(client.PasswordHash))
         {
+            await Task.Run(() => BCrypt.Net.BCrypt.Verify(request.Password, DummyPasswordHash), cancellationToken);
             logger.LogWarning("Local login failed: Invalid email or password. email={Email}",
                 PersonalDataMasker.MaskEmail(normalizedEmail));
             return Result.Fail<LoginResponse>("Invalid email or password.");
         }
 
-        bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, client.PasswordHash);
+        if (!client.IsActive)
+        {
+            logger.LogWarning("Local login rejected: Account is inactive. email={Email}",
+                PersonalDataMasker.MaskEmail(normalizedEmail));
+            return Result.Fail<LoginResponse>("Account is inactive or disabled.");
+        }
+
+        bool isPasswordValid = await Task.Run(() => BCrypt.Net.BCrypt.Verify(request.Password, client.PasswordHash), cancellationToken);
         if (!isPasswordValid)
         {
             logger.LogWarning("Local login failed: Invalid email or password. email={Email}",

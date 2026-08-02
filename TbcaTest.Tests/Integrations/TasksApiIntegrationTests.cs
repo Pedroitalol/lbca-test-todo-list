@@ -65,8 +65,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         {
             config.AddInMemoryCollection(new[]
             {
-                new KeyValuePair<string, string?>("AppSecurity:ApiKey", "test-key"),
-                new KeyValuePair<string, string?>("AppSecurity:ApiSecret", "test-secret"),
                 new KeyValuePair<string, string?>("AppSecurity:RateLimiting:DefaultRequestsPerSecond", "1000000"),
                 new KeyValuePair<string, string?>("AppSecurity:RateLimiting:AuthRequestsPerSecond", "1000000"),
                 new KeyValuePair<string, string?>("DatabaseStartup:ApplyMigrationsOnStartup", "false")
@@ -132,8 +130,6 @@ public abstract class TasksApiTestBase : IDisposable
         _factory = new CustomWebApplicationFactory();
         Client = _factory.CreateClient();
         Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
-        Client.DefaultRequestHeaders.Add("X-API-KEY", "test-key");
-        Client.DefaultRequestHeaders.Add("X-API-SECRET", "test-secret");
     }
 
     // Creates a task and returns the full response DTO

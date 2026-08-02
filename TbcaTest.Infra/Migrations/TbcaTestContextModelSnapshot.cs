@@ -157,7 +157,11 @@ namespace TbcaTest.Infra.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TaskItems");
+                    b.HasIndex("Title")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TaskItems_Title_Unique");
+
+                    b.ToTable("TaskItems", (string)null);
                 });
 #pragma warning restore 612, 618
         }
